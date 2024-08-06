@@ -24,7 +24,7 @@ This plugin provides a simple way to monitor network speed (download and upload)
 
 ```yaml
 dependencies:
-  traffic_stats: ^0.0.1 (replace with your actual version)
+  traffic_stats: 
 ```
 
 2. **Install the package:**
