@@ -1,7 +1,7 @@
 name: traffic_stats
-description: "A new Flutter plugin project."
+description: "A plugin for getting network traffic stats"
 version: 0.0.1
-homepage:
+repository: https://github.com/whitecodel/traffic_stats
 
 environment:
   sdk: '>=3.4.3 <4.0.0'
