@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:traffic_stats/traffic_stats.dart'; // Update this import based on your actual package path
+import 'package:traffic_statistics/traffic_statistics.dart'; // Update this import based on your actual package path
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -13,40 +15,47 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: NetworkSpeedPage(),
+      home: const _NetworkStatisticsPage(),
     );
   }
 }
 
-class NetworkSpeedPage extends StatefulWidget {
+class _NetworkStatisticsPage extends StatefulWidget {
+  const _NetworkStatisticsPage();
+
   @override
-  _NetworkSpeedPageState createState() => _NetworkSpeedPageState();
+  _NetworkStatisticsPageState createState() => _NetworkStatisticsPageState();
 }
 
-class _NetworkSpeedPageState extends State<NetworkSpeedPage> {
-  final NetworkSpeedService _networkSpeedService = NetworkSpeedService();
-  late Stream<NetworkSpeedData> _speedStream;
-  late NetworkSpeedData _currentSpeed;
+class _NetworkStatisticsPageState extends State<_NetworkStatisticsPage> {
+  final NetworkSpeedAndUsageService _networkSpeedAndUsageService = NetworkSpeedAndUsageService();
+  late Stream<NetworkStatistics> _statisticsStream;
+  late NetworkStatistics _currentStatistics;
 
   @override
   void initState() {
     super.initState();
-    _networkSpeedService.init(); // Initialize the service
-    _speedStream = _networkSpeedService.speedStream;
-    _currentSpeed = NetworkSpeedData(downloadSpeed: 0, uploadSpeed: 0);
+    _networkSpeedAndUsageService.init(); // Initialize the service
 
-    // Listen to the stream and update the state with new data
-    _speedStream.listen((speedData) {
+    _statisticsStream = _networkSpeedAndUsageService.statisticsStream;
+    _currentStatistics = NetworkStatistics(uploadSpeed: 0,
+                                           downloadSpeed: 0,
+                                           overallTx: 0,
+                                           overallRx: 0);
+
+    // Listen to the statistics stream and update the state with new data
+    _statisticsStream.listen((data) {
       setState(() {
-        _currentSpeed = speedData;
+        _currentStatistics = data;
       });
     });
   }
 
   @override
   void dispose() {
-    _networkSpeedService
+    _networkSpeedAndUsageService
         .dispose(); // Dispose the service when the widget is disposed
+
     super.dispose();
   }
 
@@ -54,20 +63,30 @@ class _NetworkSpeedPageState extends State<NetworkSpeedPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Network Speed Monitor'),
+        title: const Text('Network Speed And Usage Monitor'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
-              'Download Speed: ${_currentSpeed.downloadSpeed} Kbps',
-              style: TextStyle(fontSize: 20),
+              'Download Speed: ${_currentStatistics.downloadSpeed} Kbps',
+              style: const TextStyle(fontSize: 20),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
-              'Upload Speed: ${_currentSpeed.uploadSpeed} Kbps',
-              style: TextStyle(fontSize: 20),
+              'Upload Speed: ${_currentStatistics.uploadSpeed} Kbps',
+              style: const TextStyle(fontSize: 20),
+            ),
+
+            Text(
+              'Tx Usage: ${_currentStatistics.overallTx} ????',
+              style: const TextStyle(fontSize: 20),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Rx Usage: ${_currentStatistics.overallRx} ????',
+              style: const TextStyle(fontSize: 20),
             ),
           ],
         ),

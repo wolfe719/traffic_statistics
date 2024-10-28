@@ -1,6 +1,6 @@
-# traffic_stats_example
+# traffic_statistics_example
 
-Demonstrates how to use the traffic_stats plugin.
+Demonstrates how to use the traffic_statistics plugin.
 
 ## Getting Started
 

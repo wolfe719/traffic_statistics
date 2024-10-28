@@ -1,4 +1,4 @@
-package com.whitecodel.traffic_stats
+package us.lobo.traffic_statistics
 
 import android.annotation.SuppressLint
 import android.net.TrafficStats
@@ -8,9 +8,9 @@ import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 
-class TrafficStatsPlugin : FlutterPlugin, EventChannel.StreamHandler {
+class TrafficStatisticsPlugin : FlutterPlugin, EventChannel.StreamHandler {
     private lateinit var eventChannel: EventChannel
-    private val SPEED_CHANNEL = "traffic_stats/network_speed"
+    private val SPEED_CHANNEL = "traffic_statistics/network_statistics"
     private val UPDATE_INTERVAL = 1000L // 1 second
 
     private val handler = Handler(Looper.getMainLooper())
@@ -46,7 +46,10 @@ class TrafficStatsPlugin : FlutterPlugin, EventChannel.StreamHandler {
                         val downloadSpeed = ((newRxBytes - currentRxBytes) * 1000 / (endTime - startTime)) / 1024 // Speed in Kbps
                         val uploadSpeed = ((newTxBytes - currentTxBytes) * 1000 / (endTime - startTime)) / 1024 // Speed in Kbps
 
-                        events?.success(mapOf("uploadSpeed" to uploadSpeed, "downloadSpeed" to downloadSpeed))
+                        events?.success(mapOf("uploadSpeed" to uploadSpeed,
+                                              "downloadSpeed" to downloadSpeed,
+                                              "totalTx" to newTxBytes,
+                                              "totalRx" to newRxBytes))
                     }, UPDATE_INTERVAL)
                 } catch (e: Exception) {
                     e.printStackTrace()

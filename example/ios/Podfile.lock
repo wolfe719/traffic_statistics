@@ -7,14 +7,14 @@ PODS:
     - RealReachability/Ping (= 1.4.1)
   - RealReachability/Connection (1.4.1)
   - RealReachability/Ping (1.4.1)
-  - "traffic_stats (0.0.1+1)":
+  - "traffic_statistics (0.0.1+1)":
     - Flutter
     - RealReachability
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
-  - traffic_stats (from `.symlinks/plugins/traffic_stats/ios`)
+  - traffic_statistics (from `.symlinks/plugins/traffic_statistics/ios`)
 
 SPEC REPOS:
   trunk:
@@ -25,14 +25,14 @@ EXTERNAL SOURCES:
     :path: Flutter
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
-  traffic_stats:
-    :path: ".symlinks/plugins/traffic_stats/ios"
+  traffic_statistics:
+    :path: ".symlinks/plugins/traffic_statistics/ios"
 
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   integration_test: ce0a3ffa1de96d1a89ca0ac26fca7ea18a749ef4
   RealReachability: 828e74e3a1e89ba8f54395344637689cf4065c36
-  traffic_stats: 1077635e649c823835b65b56b8f5af13636291e2
+  traffic_statistics: 1077635e649c823835b65b56b8f5af13636291e2
 
 PODFILE CHECKSUM: 819463e6a0290f5a72f145ba7cde16e8b6ef0796
 

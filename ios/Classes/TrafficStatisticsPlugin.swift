@@ -1,50 +1,76 @@
 import Flutter
 import UIKit
+import MetricKit
 import RealReachability
 
-public class TrafficStatsPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
+public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     private var eventSink: FlutterEventSink?
-    private static let SPEED_CHANNEL = "traffic_stats/network_speed"
+    private static let SPEED_CHANNEL = "traffic_statistics/network_speed"
+    private static let USAGE_CHANNEL = "traffic_statistics/network_usage"
+
+    private var started: Bool = false
+
     private var timer: Timer?
     private var previousBytesReceived: Int64 = 0
     private var previousBytesSent: Int64 = 0
 
+    private var previousUploadSpeed: Int64 = 0
+    private var previousDownloadSpeed: Int64 = 0
+
+    private var totalBytesSent: Int64 = 0
+    private var totalBytesReceived: Int64 = 0
+
     public static func register(with registrar: FlutterPluginRegistrar) {
-        let channel = FlutterEventChannel(name: SPEED_CHANNEL, binaryMessenger: registrar.messenger())
-        let instance = TrafficStatsPlugin()
-        channel.setStreamHandler(instance)
+        let speedChannel = FlutterEventChannel(name: SPEED_CHANNEL, binaryMessenger: registrar.messenger())
+        let usageChannel = FlutterEventChannel(name: USAGE_CHANNEL, binaryMessenger: registrar.messenger())
+        let instance = TrafficStatisticsPlugin()
+        speedCannel.setStreamHandler(instance)
+        usageChannel.setStreamHandler(instance)
     }
 
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         self.eventSink = events
-        startSpeedMonitoring()
+        startMonitoring()
         return nil
     }
 
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {
-        stopSpeedMonitoring()
+        stopMonitoring()
         return nil
     }
 
     private func startSpeedMonitoring() {
+        if started {
+            return
+        }
+        started = true
         RealReachability.sharedInstance()?.startNotifier()
         NotificationCenter.default.addObserver(self, selector: #selector(networkChanged(_:)), name: NSNotification.Name.realReachabilityChanged, object: nil)
         startTimer()
     }
 
     private func stopSpeedMonitoring() {
+        if !started {
+            return
+        }
+        started = false
         RealReachability.sharedInstance()?.stopNotifier()
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name.realReachabilityChanged, object: nil)
         stopTimer()
     }
 
     @objc private func networkChanged(_ notification: Notification) {
-        guard let reachability = RealReachability.sharedInstance()?.currentReachabilityStatus() else { return }
+        guard let reachability =
+                     RealReachability.sharedInstance()?.currentReachabilityStatus()
+              else { return }
 
         switch reachability {
         case .RealStatusNotReachable:
             DispatchQueue.main.async {
-                self.eventSink?(["uploadSpeed": 0, "downloadSpeed": 0])
+                self.eventSink?(["uploadSpeed": 0,
+                                 "downloadSpeed": 0,
+                                 "totalTx": 0,
+                                 "totalRx": 0])
             }
         case .RealStatusViaWiFi, .RealStatusViaWWAN:
             // Start the timer to monitor speed
@@ -56,12 +82,21 @@ public class TrafficStatsPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
 
     private func startTimer() {
         stopTimer()
-        timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(calculateSpeed), userInfo: nil, repeats: true)
+        timer = Timer.scheduledTimer(timeInterval: 1.0,
+                                     target: self,
+                                     selector: #selector(calculateStats),
+                                     userInfo: nil,
+                                     repeats: true)
     }
 
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+
+    @objc private func calculateStats() {
+        calculateSpeed()
+        calculateUsage()
     }
 
     @objc private func calculateSpeed() {
@@ -98,10 +133,44 @@ public class TrafficStatsPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             }
             freeifaddrs(ifaddrs)
         }
-        
+
+        previousUploadSpeed = uploadSpeed
+        previousDownloadSpeed = downloadSpeed
+
         DispatchQueue.main.async {
-            self.eventSink?(["uploadSpeed": uploadSpeed, "downloadSpeed": downloadSpeed])
+            self.eventSink?(["uploadSpeed": uploadSpeed,
+                             "downloadSpeed": downloadSpeed,
+                             "totalTx": totalBytesSent,
+                             "totalRx": totalBytesSent])
         }
     }
 
+    func calculateUsage() async {
+        do {
+            let metricManager = MXMetricManager.shared
+            let networkMetrics = await metricManager.metrics(for: MXMetricPayload.self)
+
+            var totalTransmitted: Int64 = 0
+            var totalReceived: Int64 = 0
+
+            for metricPayload in networkMetrics {
+                if let networkTransferMetric = metricPayload.networkTransferMetrics.first {
+                    totalTransmitted += networkTransferMetric.cumulativeCellularTxBytes + networkTransferMetric.cumulativeWifiTxBytes
+                    totalReceived += networkTransferMetric.cumulativeCellularRxBytes + networkTransferMetric.cumulativeWifiRxBytes
+                }
+            }
+
+            totalBytesSent = totalTransmitted
+            totalBytesReceived = totalReceived
+
+            DispatchQueue.main.async {
+                self.eventSink?([ "uploadSpeed": previousUploadSpeed,
+                                  "downloadSpeed": previousDownloadSpeed,
+                                  "totalTx": totalBytesSent,
+                                  "totalRx": totalBytesReceived])
+            }
+        } catch (_) {
+            // Do nothing - just wait for next call and try again!
+        }
+    }
 }
