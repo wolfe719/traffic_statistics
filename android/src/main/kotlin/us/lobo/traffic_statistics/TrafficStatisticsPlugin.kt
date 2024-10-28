@@ -10,46 +10,69 @@ import io.flutter.plugin.common.EventChannel
 
 class TrafficStatisticsPlugin : FlutterPlugin, EventChannel.StreamHandler {
     private lateinit var eventChannel: EventChannel
-    private val SPEED_CHANNEL = "traffic_statistics/network_statistics"
+    private val STATISTICS_CHANNEL = "traffic_statistics/traffic_statistics"
     private val UPDATE_INTERVAL = 1000L // 1 second
+
+//    private var index = 0;
+
+    private val uid = android.os.Process.myUid()
+
+    private val baseRxBytes = TrafficStats.getUidRxBytes(uid).toDouble()
+    private val baseTxBytes = TrafficStats.getUidTxBytes(uid).toDouble()
+    private val baseTotalRxBytes = TrafficStats.getTotalRxBytes().toDouble()
+    private val baseTotalTxBytes = TrafficStats.getTotalTxBytes().toDouble()
 
     private val handler = Handler(Looper.getMainLooper())
     private var speedRunnable: Runnable? = null
 
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        eventChannel = EventChannel(flutterPluginBinding.binaryMessenger, SPEED_CHANNEL)
+        eventChannel = EventChannel(flutterPluginBinding.binaryMessenger, STATISTICS_CHANNEL)
         eventChannel.setStreamHandler(this)
     }
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-        startSpeedMonitoring(events)
+        startStatisticsMonitoring(events)
     }
 
     override fun onCancel(arguments: Any?) {
-        stopSpeedMonitoring()
+        stopStatisticsMonitoring()
     }
 
-    private fun startSpeedMonitoring(events: EventChannel.EventSink?) {
+    private fun startStatisticsMonitoring(events: EventChannel.EventSink?) {
         speedRunnable = object : Runnable {
             @SuppressLint("MissingPermission")
             override fun run() {
                 try {
-                    val currentRxBytes = TrafficStats.getTotalRxBytes()
-                    val currentTxBytes = TrafficStats.getTotalTxBytes()
+                    val currentRxBytes = TrafficStats.getUidRxBytes(uid).toDouble()
+                    val currentTxBytes = TrafficStats.getUidTxBytes(uid).toDouble()
                     val startTime = System.currentTimeMillis()
 
                     handler.postDelayed({
-                        val newRxBytes = TrafficStats.getTotalRxBytes()
-                        val newTxBytes = TrafficStats.getTotalTxBytes()
+                        val newRxBytes = TrafficStats.getUidRxBytes(uid).toDouble()
+                        val newTxBytes = TrafficStats.getUidTxBytes(uid).toDouble()
                         val endTime = System.currentTimeMillis()
 
-                        val downloadSpeed = ((newRxBytes - currentRxBytes) * 1000 / (endTime - startTime)) / 1024 // Speed in Kbps
-                        val uploadSpeed = ((newTxBytes - currentTxBytes) * 1000 / (endTime - startTime)) / 1024 // Speed in Kbps
+                        var deltaTime = startTime - endTime;
+                        if (deltaTime <= 0) {
+                            deltaTime = 1;
+                        }
 
-                        events?.success(mapOf("uploadSpeed" to uploadSpeed,
-                                              "downloadSpeed" to downloadSpeed,
-                                              "totalTx" to newTxBytes,
-                                              "totalRx" to newRxBytes))
+                        val currentTotalRxBytes = TrafficStats.getTotalRxBytes().toDouble()
+                        val currentTotalTxBytes = TrafficStats.getTotalTxBytes().toDouble()
+
+                        val downloadSpeed = ((newRxBytes - currentRxBytes) * 1000 / deltaTime) / 1024 // Speed in Kbps
+                        val uploadSpeed = ((newTxBytes - currentTxBytes) * 1000 / deltaTime) / 1024 // Speed in Kbps
+
+                        events?.success(
+                            mapOf("uploadSpeed" to uploadSpeed.toInt(),
+                                "downloadSpeed" to downloadSpeed.toInt(),
+                                "totalTx" to newTxBytes - baseTxBytes,
+                                "totalRx" to newRxBytes - baseRxBytes,
+                                "uid" to uid,
+                                "totalAllTx" to currentTotalTxBytes - baseTotalTxBytes,
+                                "totalAllRx" to currentTotalRxBytes - baseTotalRxBytes
+                            )
+                        )
                     }, UPDATE_INTERVAL)
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -60,7 +83,7 @@ class TrafficStatisticsPlugin : FlutterPlugin, EventChannel.StreamHandler {
         handler.post(speedRunnable!!)
     }
 
-    private fun stopSpeedMonitoring() {
+    private fun stopStatisticsMonitoring() {
         speedRunnable?.let { handler.removeCallbacks(it) }
     }
 

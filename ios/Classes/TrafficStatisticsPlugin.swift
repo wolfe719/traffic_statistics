@@ -3,74 +3,89 @@ import UIKit
 import MetricKit
 import RealReachability
 
-public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
+public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHandler, MXMetricManagerSubscriber {
     private var eventSink: FlutterEventSink?
-    private static let SPEED_CHANNEL = "traffic_statistics/network_speed"
-    private static let USAGE_CHANNEL = "traffic_statistics/network_usage"
-
+    private static let STATISTICS_CHANNEL = "traffic_statistics/traffic_statistics"
+    
     private var started: Bool = false
-
+    
     private var timer: Timer?
-    private var previousBytesReceived: Int64 = 0
+    
+    private var baseBytesSent: Int64 = 0
+    private var baseBytesReceived: Int64 = 0
+    
+    private var uploadSpeed: Int64 = 0
+    private var downloadSpeed: Int64 = 0
+    
     private var previousBytesSent: Int64 = 0
-
-    private var previousUploadSpeed: Int64 = 0
-    private var previousDownloadSpeed: Int64 = 0
-
-    private var totalBytesSent: Int64 = 0
-    private var totalBytesReceived: Int64 = 0
-
+    private var previousBytesReceived: Int64 = 0
+    
+    private var bytesSent: Int64 = 0
+    private var bytesReceived: Int64 = 0
+    
+    private var totalBytesSent = 0.0
+    private var totalBytesReceived = 0.0
+    
     public static func register(with registrar: FlutterPluginRegistrar) {
-        let speedChannel = FlutterEventChannel(name: SPEED_CHANNEL, binaryMessenger: registrar.messenger())
-        let usageChannel = FlutterEventChannel(name: USAGE_CHANNEL, binaryMessenger: registrar.messenger())
+        let statisticsChannel = FlutterEventChannel(name: STATISTICS_CHANNEL, binaryMessenger: registrar.messenger())
         let instance = TrafficStatisticsPlugin()
-        speedCannel.setStreamHandler(instance)
-        usageChannel.setStreamHandler(instance)
+        statisticsChannel.setStreamHandler(instance)
     }
-
+    
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         self.eventSink = events
         startMonitoring()
         return nil
     }
-
+    
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {
         stopMonitoring()
         return nil
     }
-
-    private func startSpeedMonitoring() {
+    
+    private func startMonitoring() {
         if started {
             return
         }
         started = true
         RealReachability.sharedInstance()?.startNotifier()
         NotificationCenter.default.addObserver(self, selector: #selector(networkChanged(_:)), name: NSNotification.Name.realReachabilityChanged, object: nil)
+        
+        let metricManager = MXMetricManager.shared
+        metricManager.add(self)
+        
         startTimer()
     }
-
-    private func stopSpeedMonitoring() {
+    
+    private func stopMonitoring() {
         if !started {
             return
         }
         started = false
         RealReachability.sharedInstance()?.stopNotifier()
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name.realReachabilityChanged, object: nil)
+        
+        let metricManager = MXMetricManager.shared
+        metricManager.remove(self)
+        
         stopTimer()
     }
-
+    
     @objc private func networkChanged(_ notification: Notification) {
         guard let reachability =
-                     RealReachability.sharedInstance()?.currentReachabilityStatus()
-              else { return }
-
+                RealReachability.sharedInstance()?.currentReachabilityStatus()
+        else { return }
+        
         switch reachability {
         case .RealStatusNotReachable:
             DispatchQueue.main.async {
                 self.eventSink?(["uploadSpeed": 0,
                                  "downloadSpeed": 0,
                                  "totalTx": 0,
-                                 "totalRx": 0])
+                                 "totalRx": 0,
+                                 "uid": ProcessInfo().processIdentifier,
+                                 "totalAllTx": 0,
+                                 "totalAllRx": 0])
             }
         case .RealStatusViaWiFi, .RealStatusViaWWAN:
             // Start the timer to monitor speed
@@ -79,7 +94,7 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
             break
         }
     }
-
+    
     private func startTimer() {
         stopTimer()
         timer = Timer.scheduledTimer(timeInterval: 1.0,
@@ -88,24 +103,26 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
                                      userInfo: nil,
                                      repeats: true)
     }
-
+    
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
     }
-
+    
     @objc private func calculateStats() {
-        calculateSpeed()
-        calculateUsage()
+        calculateStatistics()
     }
-
-    @objc private func calculateSpeed() {
+    
+    @objc private func calculateStatistics() {
         var ifaddrs: UnsafeMutablePointer<ifaddrs>? = nil
-        var uploadSpeed: Int64 = 0
-        var downloadSpeed: Int64 = 0
-
+        var setBaseBytes = baseBytesSent == 0 && baseBytesReceived == 0
+        
         if getifaddrs(&ifaddrs) == 0 {
             var pointer = ifaddrs
+            
+            var sent: Int64 = 0
+            var received: Int64 = 0
+            
             while pointer != nil {
                 if let ifa_name = pointer?.pointee.ifa_name {
                     let name = String(cString: ifa_name)
@@ -117,60 +134,97 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
                             
                             if self.previousBytesReceived > 0 {
                                 let downloadBytes = receivedBytes - self.previousBytesReceived
-                                downloadSpeed = (downloadBytes * 8) / 1000 // Convert to kbps
+                                downloadSpeed = (downloadBytes * 8) / 1024 // Convert to kbps
                             }
                             if self.previousBytesSent > 0 {
                                 let uploadBytes = sentBytes - self.previousBytesSent
-                                uploadSpeed = (uploadBytes * 8) / 1000 // Convert to kbps
+                                uploadSpeed = (uploadBytes * 8) / 1024 // Convert to kbps
                             }
                             
-                            self.previousBytesReceived = receivedBytes
-                            self.previousBytesSent = sentBytes
+                            received += receivedBytes
+                            sent += sentBytes
                         }
                     }
                 }
                 pointer = pointer?.pointee.ifa_next
             }
             freeifaddrs(ifaddrs)
+            
+            previousBytesSent = bytesSent
+            previousBytesReceived = bytesReceived
+            
+            bytesSent = sent
+            bytesReceived = received
+        }
+        
+        if setBaseBytes {
+            baseBytesSent = previousBytesSent
+            baseBytesReceived = previousBytesReceived
         }
 
-        previousUploadSpeed = uploadSpeed
-        previousDownloadSpeed = downloadSpeed
+        sendEvent()
+    }
+    
+    /**
+     @method        didReceiveMetricPayloads:payloads
+     @abstract      This method is invoked when a new MXMetricPayload has been received.
+     @param         payloads
+     An NSArray of MXMetricPayload objects. This array of payloads contains data from previous usage sessions.
+     @discussion    You can expect for this method to be invoked atleast once per day when the app is running and subscribers are available.
+     @discussion    If no subscribers are available, this method will not be invoked.
+     @discussion    Atleast one subscriber must be available to receive metrics.
+     @discussion    This method is invoked on a background queue.
+     */
+    public func didReceive(_ payloads: [MXMetricPayload]) {
+        guard payloads.count > 0 else { return }
+        
+        var totalTransmitted = 0.0
+        var totalReceived = 0.0
+        
+        for payload in payloads {
+            if payload.networkTransferMetrics == nil { continue }
+            
+            let networkMetrics = payload.networkTransferMetrics
+            totalTransmitted += (networkMetrics?.cumulativeCellularUpload.value ?? 0.0)
+            totalTransmitted += (networkMetrics?.cumulativeWifiUpload.value ?? 0.0)
+            totalReceived += (networkMetrics?.cumulativeCellularDownload.value ?? 0.0)
+            totalReceived += (networkMetrics?.cumulativeWifiDownload.value ?? 0.0)
+        }
+        
+        totalBytesSent = totalTransmitted
+        totalBytesReceived = totalReceived
+        
+        sendEvent()
 
+    }
+    
+    private func sendEvent() {
+        var totalSent = previousBytesSent - baseBytesSent
+        var totalReceived = previousBytesReceived - baseBytesReceived;
+        
         DispatchQueue.main.async {
-            self.eventSink?(["uploadSpeed": uploadSpeed,
-                             "downloadSpeed": downloadSpeed,
-                             "totalTx": totalBytesSent,
-                             "totalRx": totalBytesSent])
+            self.eventSink?(["uploadSpeed": self.uploadSpeed,
+                             "downloadSpeed": self.downloadSpeed,
+                             "totalTx": self.bytesSent,
+                             "totalRx": self.bytesReceived,
+                             "uid": ProcessInfo().processIdentifier,
+                             "totalAllTx": self.totalBytesSent,
+                             "totalAllRx": self.totalBytesReceived])
         }
     }
-
-    func calculateUsage() async {
-        do {
-            let metricManager = MXMetricManager.shared
-            let networkMetrics = await metricManager.metrics(for: MXMetricPayload.self)
-
-            var totalTransmitted: Int64 = 0
-            var totalReceived: Int64 = 0
-
-            for metricPayload in networkMetrics {
-                if let networkTransferMetric = metricPayload.networkTransferMetrics.first {
-                    totalTransmitted += networkTransferMetric.cumulativeCellularTxBytes + networkTransferMetric.cumulativeWifiTxBytes
-                    totalReceived += networkTransferMetric.cumulativeCellularRxBytes + networkTransferMetric.cumulativeWifiRxBytes
-                }
-            }
-
-            totalBytesSent = totalTransmitted
-            totalBytesReceived = totalReceived
-
-            DispatchQueue.main.async {
-                self.eventSink?([ "uploadSpeed": previousUploadSpeed,
-                                  "downloadSpeed": previousDownloadSpeed,
-                                  "totalTx": totalBytesSent,
-                                  "totalRx": totalBytesReceived])
-            }
-        } catch (_) {
-            // Do nothing - just wait for next call and try again!
-        }
+    
+    /**
+     @method        didReceiveDiagnosticPayloads:payloads
+     @abstract      This method is invoked when a new MXDiagnosticPayload has been received.
+     @param         payloads
+     An NSArray of MXDiagnosticPayload objects. This array of payloads contains diagnostics from previous usage sessions.
+     @discussion    You can expect for this method to be invoked atleast once per day when the app is running and subscribers are available.
+     @discussion    If no subscribers are available, this method will not be invoked.
+     @discussion    Atleast one subscriber must be available to receive diagnostics.
+     @discussion    This method is invoked on a background queue.
+     */
+    public func didReceive(_ payloads: [MXDiagnosticPayload]) {
+        // Do nothing with the payloads coming in
     }
+    
 }

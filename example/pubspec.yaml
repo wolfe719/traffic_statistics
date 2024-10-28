@@ -17,6 +17,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  webview_flutter: ^4.10.0
+
   traffic_statistics:
     # When depending on this package from a real application you should use:
     #   traffic_statistics: ^x.y.z

@@ -1,4 +1,4 @@
-package com.example.traffic_stats_example
+package com.example.traffic_statistics_example
 
 import io.flutter.embedding.android.FlutterActivity
 
