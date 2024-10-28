@@ -11,20 +11,20 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
     
     private var timer: Timer?
     
-    private var baseBytesSent: Int64 = 0
-    private var baseBytesReceived: Int64 = 0
+    private var baseBytesSent: Double = 0
+    private var baseBytesReceived: Double = 0
     
-    private var uploadSpeed: Int64 = 0
-    private var downloadSpeed: Int64 = 0
+    private var uploadSpeed: Int = 0
+    private var downloadSpeed: Int = 0
     
-    private var previousBytesSent: Int64 = 0
-    private var previousBytesReceived: Int64 = 0
+    private var previousBytesSent: Double = 0
+    private var previousBytesReceived: Double = 0
     
-    private var bytesSent: Int64 = 0
-    private var bytesReceived: Int64 = 0
+    private var bytesSent: Double = 0
+    private var bytesReceived: Double = 0
     
-    private var totalBytesSent = 0.0
-    private var totalBytesReceived = 0.0
+    private var totalBytesSent: Double = 0.0
+    private var totalBytesReceived: Double = 0.0
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let statisticsChannel = FlutterEventChannel(name: STATISTICS_CHANNEL, binaryMessenger: registrar.messenger())
@@ -81,11 +81,11 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
             DispatchQueue.main.async {
                 self.eventSink?(["uploadSpeed": 0,
                                  "downloadSpeed": 0,
-                                 "totalTx": 0,
-                                 "totalRx": 0,
-                                 "uid": ProcessInfo().processIdentifier,
-                                 "totalAllTx": 0,
-                                 "totalAllRx": 0])
+                                 "totalTx": 0.0,
+                                 "totalRx": 0.0,
+                                 "uid": Double(ProcessInfo().processIdentifier),
+                                 "totalAllTx": 0.0,
+                                 "totalAllRx": 0.0])
             }
         case .RealStatusViaWiFi, .RealStatusViaWWAN:
             // Start the timer to monitor speed
@@ -133,12 +133,10 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
                             let sentBytes = Int64(networkData.ifi_obytes)
                             
                             if self.previousBytesReceived > 0 {
-                                let downloadBytes = receivedBytes - self.previousBytesReceived
-                                downloadSpeed = (downloadBytes * 8) / 1024 // Convert to kbps
+                                let downloadBytes = Double(receivedBytes) - self.previousBytesReceived
                             }
                             if self.previousBytesSent > 0 {
-                                let uploadBytes = sentBytes - self.previousBytesSent
-                                uploadSpeed = (uploadBytes * 8) / 1024 // Convert to kbps
+                                let uploadBytes = Double(sentBytes) - self.previousBytesSent
                             }
                             
                             received += receivedBytes
@@ -150,11 +148,14 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
             }
             freeifaddrs(ifaddrs)
             
+            downloadSpeed = Int((received * 8) / 1024) // Convert to kbps
+            uploadSpeed = Int((sent * 8) / 1024) // Convert to kbps
+
             previousBytesSent = bytesSent
             previousBytesReceived = bytesReceived
             
-            bytesSent = sent
-            bytesReceived = received
+            bytesSent = Double(sent)
+            bytesReceived = Double(received)
         }
         
         if setBaseBytes {
@@ -207,7 +208,7 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
                              "downloadSpeed": self.downloadSpeed,
                              "totalTx": self.bytesSent,
                              "totalRx": self.bytesReceived,
-                             "uid": ProcessInfo().processIdentifier,
+                             "uid": Double(ProcessInfo().processIdentifier),
                              "totalAllTx": self.totalBytesSent,
                              "totalAllRx": self.totalBytesReceived])
         }

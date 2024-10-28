@@ -27,7 +27,7 @@ class TrafficStatistics {
   final double totalTx;
   final double totalRx;
 
-  final int uid;
+  final double uid;
 
   final double totalAllTx;
   final double totalAllRx;
@@ -76,13 +76,13 @@ class TrafficStatisticsService {
     _subscription = _statisticsChannel.receiveBroadcastStream().listen((data) {
       // Parse the incoming data and create a NetworkSpeedData object
       TrafficStatistics statistics = TrafficStatistics(
-        uploadSpeed: data['uploadSpeed'] ?? 0,
-        downloadSpeed: data['downloadSpeed'] ?? 0,
-        totalTx: data['totalTx'] ?? 0,
-        totalRx: data['totalRx'] ?? 0,
-        uid: data['uid'] ?? 0,
-        totalAllTx: data['totalAllTx'] ?? 0,
-        totalAllRx: data['totalAllRx'] ?? 0
+        uploadSpeed: data['uploadSpeed'] ?? 0.0,
+        downloadSpeed: data['downloadSpeed'] ?? 0.0,
+        totalTx: data['totalTx'] ?? 0.0,
+        totalRx: data['totalRx'] ?? 0.0,
+        uid: data['uid'] ?? 0.0,
+        totalAllTx: data['totalAllTx'] ?? 0.0,
+        totalAllRx: data['totalAllRx'] ?? 0.0
       );
       // Add the parsed data to the stream controller
       _statisticsStreamController.add(statistics);

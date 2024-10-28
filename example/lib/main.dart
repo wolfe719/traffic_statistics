@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:traffic_statistics/traffic_statistics.dart';
-import 'package:webview_flutter/webview_flutter.dart'; // Update this import based on your actual package path
+import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
   runApp(const MyApp());
