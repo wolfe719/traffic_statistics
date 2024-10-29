@@ -26,6 +26,25 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
     private var totalBytesSent: Double = 0.0
     private var totalBytesReceived: Double = 0.0
     
+    private var previousTime: Date = Date()
+    
+    private func clearStatistics() {
+        baseBytesSent         = 0.0
+        baseBytesReceived     = 0.0
+        
+        uploadSpeed           = 0
+        downloadSpeed         = 0
+        
+        previousBytesSent     = 0.0
+        previousBytesReceived = 0.0
+
+        bytesSent             = 0.0
+        bytesReceived         = 0.0
+
+        totalBytesSent        = 0.0
+        totalBytesReceived    = 0.0
+    }
+    
     public static func register(with registrar: FlutterPluginRegistrar) {
         let statisticsChannel = FlutterEventChannel(name: STATISTICS_CHANNEL, binaryMessenger: registrar.messenger())
         let instance = TrafficStatisticsPlugin()
@@ -51,8 +70,19 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
         RealReachability.sharedInstance()?.startNotifier()
         NotificationCenter.default.addObserver(self, selector: #selector(networkChanged(_:)), name: NSNotification.Name.realReachabilityChanged, object: nil)
         
+        clearStatistics()
+
+        var totalTransmitted = 0.0
+        var totalReceived = 0.0
+
         let metricManager = MXMetricManager.shared
         metricManager.add(self)
+        
+        let pastPayloads = metricManager.pastPayloads
+        (totalTransmitted, totalReceived) = parsePayloads(pastPayloads)
+        
+        totalBytesSent = totalTransmitted
+        totalBytesReceived = totalReceived
         
         startTimer()
     }
@@ -110,10 +140,6 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
     }
     
     @objc private func calculateStats() {
-        calculateStatistics()
-    }
-    
-    @objc private func calculateStatistics() {
         var ifaddrs: UnsafeMutablePointer<ifaddrs>? = nil
         var setBaseBytes = baseBytesSent == 0 && baseBytesReceived == 0
         
@@ -129,18 +155,11 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
                     if name == "en0" || name == "pdp_ip0" { // en0 for Wi-Fi, pdp_ip0 for cellular
                         if let data = pointer?.pointee.ifa_data {
                             let networkData = data.load(as: if_data.self)
-                            let receivedBytes = Int64(networkData.ifi_ibytes)
                             let sentBytes = Int64(networkData.ifi_obytes)
+                            let receivedBytes = Int64(networkData.ifi_ibytes)
                             
-                            if self.previousBytesReceived > 0 {
-                                let downloadBytes = Double(receivedBytes) - self.previousBytesReceived
-                            }
-                            if self.previousBytesSent > 0 {
-                                let uploadBytes = Double(sentBytes) - self.previousBytesSent
-                            }
-                            
-                            received += receivedBytes
                             sent += sentBytes
+                            received += receivedBytes
                         }
                     }
                 }
@@ -148,22 +167,50 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
             }
             freeifaddrs(ifaddrs)
             
-            downloadSpeed = Int((received * 8) / 1024) // Convert to kbps
-            uploadSpeed = Int((sent * 8) / 1024) // Convert to kbps
-
-            previousBytesSent = bytesSent
-            previousBytesReceived = bytesReceived
+            var dSent = Double(sent)
+            var dReceived = Double(received)
+                        
+            if setBaseBytes {
+                baseBytesSent = dSent
+                baseBytesReceived = dReceived
+            }
             
-            bytesSent = Double(sent)
-            bytesReceived = Double(received)
+            previousBytesSent     = bytesSent
+            previousBytesReceived = bytesReceived
+
+            bytesSent     = dSent     - baseBytesSent
+            bytesReceived = dReceived - baseBytesReceived
+
+            var now = Date()
+            var delta = now.timeIntervalSince(previousTime)
+            if (delta == 0) { delta = 1.0 }
+            
+            // Divide by 1024 to get kilobytes, Multiply by 1000 to get from per-millisec to per-sec, yield kbps 
+            uploadSpeed   = Int((bytesSent     - previousBytesSent)     * 1000 / delta / 1024.0) // Speed in kbps
+            downloadSpeed = Int((bytesReceived - previousBytesReceived) * 1000 / delta / 1024.0) // Speed in kbps
         }
         
-        if setBaseBytes {
-            baseBytesSent = previousBytesSent
-            baseBytesReceived = previousBytesReceived
-        }
-
         sendEvent()
+    }
+    
+    fileprivate func parsePayloads(_ payloads: [MXMetricPayload]) -> (totalTransmitted: Double, totalReceived: Double) {
+        var totalTransmitted = 0.0
+        var totalReceived = 0.0
+        
+        for payload in payloads {
+            if payload.networkTransferMetrics == nil { continue }
+            
+            let networkMetrics = payload.networkTransferMetrics
+            
+            print("NetworkMetrics: " + networkMetrics.debugDescription)
+            
+            totalTransmitted += (networkMetrics?.cumulativeCellularUpload.value ?? 0.0)
+            totalTransmitted += (networkMetrics?.cumulativeWifiUpload.value ?? 0.0)
+            totalReceived += (networkMetrics?.cumulativeCellularDownload.value ?? 0.0)
+            totalReceived += (networkMetrics?.cumulativeWifiDownload.value ?? 0.0)
+        }
+        
+        return (totalTransmitted, totalReceived)
     }
     
     /**
@@ -182,15 +229,7 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
         var totalTransmitted = 0.0
         var totalReceived = 0.0
         
-        for payload in payloads {
-            if payload.networkTransferMetrics == nil { continue }
-            
-            let networkMetrics = payload.networkTransferMetrics
-            totalTransmitted += (networkMetrics?.cumulativeCellularUpload.value ?? 0.0)
-            totalTransmitted += (networkMetrics?.cumulativeWifiUpload.value ?? 0.0)
-            totalReceived += (networkMetrics?.cumulativeCellularDownload.value ?? 0.0)
-            totalReceived += (networkMetrics?.cumulativeWifiDownload.value ?? 0.0)
-        }
+        (totalTransmitted, totalReceived) = parsePayloads(payloads)
         
         totalBytesSent = totalTransmitted
         totalBytesReceived = totalReceived
@@ -204,13 +243,20 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
         var totalReceived = previousBytesReceived - baseBytesReceived;
         
         DispatchQueue.main.async {
+            
+            var totalSent = 
+            self.totalBytesSent != 0 ? self.totalBytesSent : self.bytesSent + self.baseBytesSent
+            
+            var totalReceived = 
+            self.totalBytesReceived != 0 ? self.totalBytesReceived : self.bytesReceived + self.baseBytesReceived
+                        
             self.eventSink?(["uploadSpeed": self.uploadSpeed,
                              "downloadSpeed": self.downloadSpeed,
                              "totalTx": self.bytesSent,
                              "totalRx": self.bytesReceived,
                              "uid": Double(ProcessInfo().processIdentifier),
-                             "totalAllTx": self.totalBytesSent,
-                             "totalAllRx": self.totalBytesReceived])
+                             "totalAllTx": totalSent,
+                             "totalAllRx": totalReceived])
         }
     }
     
