@@ -101,88 +101,90 @@ class _TrafficStatisticsPageState extends State<_TrafficStatisticsPage> {
       appBar: AppBar(
         title: const Text('Network Traffic Statistics Monitor'),
       ),
-      body: Column(
-        children: [
-          SingleChildScrollView(
-            child: Center(
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            SingleChildScrollView(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Text(
+                      'Download Speed: ${_currentStatistics.downloadSpeed} Kbps',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Upload Speed: ${_currentStatistics.uploadSpeed} Kbps',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Text(
+                      'UID: ${_currentStatistics.uid}',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Text(
+                      'Tx Usage: ${(_currentStatistics.totalTx / 1024).floor()} kb',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Rx Usage: ${(_currentStatistics.totalRx / 1024).floor()} kb',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Text(
+                      'ALL Tx Usage: ${(_currentStatistics.totalAllTx / 1024).floor()} kb',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'ALL Rx Usage: ${(_currentStatistics.totalAllRx / 1024).floor()} kb',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding( // Web browser section
+              padding: const EdgeInsets.all(8.0),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Text(
-                    'Download Speed: ${_currentStatistics.downloadSpeed} Kbps',
-                    style: const TextStyle(fontSize: 20),
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _textController,
+                          decoration: const InputDecoration(
+                            hintText: 'Enter URL',
+                          ),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          _webViewController.loadRequest(Uri.parse(_textController.text));
+                        },
+                        child: const Text('GO'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Upload Speed: ${_currentStatistics.uploadSpeed} Kbps',
-                    style: const TextStyle(fontSize: 20),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  Text(
-                    'UID: ${_currentStatistics.uid}',
-                    style: const TextStyle(fontSize: 20),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  Text(
-                    'Tx Usage: ${(_currentStatistics.totalTx / 1024).floor()} kb',
-                    style: const TextStyle(fontSize: 20),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Rx Usage: ${(_currentStatistics.totalRx / 1024).floor()} kb',
-                    style: const TextStyle(fontSize: 20),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  Text(
-                    'ALL Tx Usage: ${(_currentStatistics.totalAllTx / 1024).floor()} kb',
-                    style: const TextStyle(fontSize: 20),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'ALL Rx Usage: ${(_currentStatistics.totalAllRx / 1024).floor()} kb',
-                    style: const TextStyle(fontSize: 20),
+                  SizedBox(
+                    height: 400, // Adjust height as needed
+                    child: WebViewWidget(controller: _webViewController),
                   ),
                 ],
               ),
             ),
-          ),
-          Padding( // Web browser section
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _textController,
-                        decoration: const InputDecoration(
-                          hintText: 'Enter URL',
-                        ),
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        _webViewController.loadRequest(Uri.parse(_textController.text));
-                      },
-                      child: const Text('GO'),
-                    ),
-                  ],
-                ),
-                SizedBox(
-                  height: 400, // Adjust height as needed
-                  child: WebViewWidget(controller: _webViewController),
-                ),
-              ],
-            ),
-          ),
-        ],
-      )
+          ],
+        ),
+      ),
     );
   }
 }
