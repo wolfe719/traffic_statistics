@@ -67,6 +67,62 @@ The statistics information that is passed back from the statisticsStream include
 * totalAllRx - a double value that is all the data received by all WiFi and Cellular 
     connections since the device has started (or rebooted, or restarted).
 
+## How To Use
+
+This pub offers a streaming API for getting network usage statistics as well as current 
+upload and download speed. The API looks like this:
+
+```dart
+  final TrafficStatisticsService _trafficStatisticsService = TrafficStatisticsService();
+
+  late Stream<TrafficStatistics> _statisticsStream;
+  late TrafficStatistics _currentStatistics;
+
+  @override
+  void initState() {
+    _trafficStatisticsService.init(); // Initialize the service
+
+    _statisticsStream = _trafficStatisticsService.statisticsStream; // Get the statisticsStream
+    
+    _currentStatistics = TrafficStatistics(uploadSpeed: 0,  // Set up a default value initially
+        downloadSpeed: 0,
+        totalTx: 0.0,
+        totalRx: 0.0,
+        uid: 0,
+        totalAllTx: 0.0,
+        totalAllRx: 0.0);
+
+    // Listen to the statistics stream and update the state with new data
+    _statisticsStream.listen((data) {
+      setState(() {
+        _currentStatistics = data;
+      });
+    });    
+  }
+```
+
+The statistics information that is passed back from the statisticsStream includes the following:
+
+* uploadSpeed - a double value that is the current upload speed, calculated by taking the
+    amount of data uploaded since the last check, the time since the last check, and running
+    a simple calculation to give back kbps (kilobytes per second)
+
+* downloadSpeed - a double value that is the current download speed, calculated by taking 
+    the amount of data downloaded since the last check, the time since the last check, and 
+    running a simple calculation to give back kbps (kilobytes per second)
+
+* totalTx - a double value of the total transmitted data since the service started. For Android,
+    that is the total transmitted data for this app. For iOS, that is the total transmitted 
+    data across both WiFi and Cellular.
+
+* uid - an integer value which specifies the application UID in Android and a Process ID in iOS
+
+* totalAllTx - a double value that is all the data transmitted by all WiFi and Cellular 
+    connections since the device started (or rebooted, or restarted).
+
+* totalAllRx - a double value that is all the data received by all WiFi and Cellular 
+    connections since the device has started (or rebooted, or restarted).
+
 ## Installation
 
 1. **Add the dependency to your `pubspec.yaml` file:**
