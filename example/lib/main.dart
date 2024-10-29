@@ -103,54 +103,52 @@ class _TrafficStatisticsPageState extends State<_TrafficStatisticsPage> {
       ),
       body: Column(
         children: [
-          Expanded( // Make the existing content scrollable
-            child: SingleChildScrollView(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Text(
-                      'Download Speed: ${_currentStatistics.downloadSpeed} Kbps',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Upload Speed: ${_currentStatistics.uploadSpeed} Kbps',
-                      style: const TextStyle(fontSize: 20),
-                    ),
+          SingleChildScrollView(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Text(
+                    'Download Speed: ${_currentStatistics.downloadSpeed} Kbps',
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Upload Speed: ${_currentStatistics.uploadSpeed} Kbps',
+                    style: const TextStyle(fontSize: 20),
+                  ),
 
-                    const SizedBox(height: 64),
+                  const SizedBox(height: 16),
 
-                    Text(
-                      'UID: ${_currentStatistics.uid}',
-                      style: const TextStyle(fontSize: 20),
-                    ),
+                  Text(
+                    'UID: ${_currentStatistics.uid}',
+                    style: const TextStyle(fontSize: 20),
+                  ),
 
-                    const SizedBox(height: 32),
+                  const SizedBox(height: 16),
 
-                    Text(
-                      'Tx Usage: ${(_currentStatistics.totalTx / 1024).floor()} kb',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Rx Usage: ${(_currentStatistics.totalRx / 1024).floor()} kb',
-                      style: const TextStyle(fontSize: 20),
-                    ),
+                  Text(
+                    'Tx Usage: ${(_currentStatistics.totalTx / 1024).floor()} kb',
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Rx Usage: ${(_currentStatistics.totalRx / 1024).floor()} kb',
+                    style: const TextStyle(fontSize: 20),
+                  ),
 
-                    const SizedBox(height: 32),
+                  const SizedBox(height: 16),
 
-                    Text(
-                      'ALL Tx Usage: ${(_currentStatistics.totalAllTx / 1024).floor()} kb',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'ALL Rx Usage: ${(_currentStatistics.totalAllRx / 1024).floor()} kb',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                  ],
-                ),
+                  Text(
+                    'ALL Tx Usage: ${(_currentStatistics.totalAllTx / 1024).floor()} kb',
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'ALL Rx Usage: ${(_currentStatistics.totalAllRx / 1024).floor()} kb',
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                ],
               ),
             ),
           ),
@@ -177,7 +175,7 @@ class _TrafficStatisticsPageState extends State<_TrafficStatisticsPage> {
                   ],
                 ),
                 SizedBox(
-                  height: 300, // Adjust height as needed
+                  height: 400, // Adjust height as needed
                   child: WebViewWidget(controller: _webViewController),
                 ),
               ],

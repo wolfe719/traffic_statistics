@@ -27,7 +27,7 @@ class TrafficStatistics {
   final double totalTx;
   final double totalRx;
 
-  final double uid;
+  final int uid;
 
   final double totalAllTx;
   final double totalAllRx;
@@ -80,7 +80,7 @@ class TrafficStatisticsService {
         downloadSpeed: data['downloadSpeed'] ?? 0.0,
         totalTx: data['totalTx'] ?? 0.0,
         totalRx: data['totalRx'] ?? 0.0,
-        uid: data['uid'] ?? 0.0,
+        uid: data['uid'] ?? 0,
         totalAllTx: data['totalAllTx'] ?? 0.0,
         totalAllRx: data['totalAllRx'] ?? 0.0
       );

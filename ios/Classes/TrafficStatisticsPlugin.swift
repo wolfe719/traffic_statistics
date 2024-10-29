@@ -113,7 +113,7 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
                                  "downloadSpeed": 0,
                                  "totalTx": 0.0,
                                  "totalRx": 0.0,
-                                 "uid": Double(ProcessInfo().processIdentifier),
+                                 "uid": ProcessInfo().processIdentifier,
                                  "totalAllTx": 0.0,
                                  "totalAllRx": 0.0])
             }
@@ -254,7 +254,7 @@ public class TrafficStatisticsPlugin: NSObject, FlutterPlugin, FlutterStreamHand
                              "downloadSpeed": self.downloadSpeed,
                              "totalTx": self.bytesSent,
                              "totalRx": self.bytesReceived,
-                             "uid": Double(ProcessInfo().processIdentifier),
+                             "uid": ProcessInfo().processIdentifier,
                              "totalAllTx": totalSent,
                              "totalAllRx": totalReceived])
         }
